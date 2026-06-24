@@ -24,6 +24,10 @@ dist-ssr
 *.sw?
 .env
 
-# Agentes
+# Agents
 .agents/
 skills-lock.json
+graphify-out/
+
+# Files
+query_graph.py

@@ -8,6 +8,11 @@ django = "*"
 djangorestframework = "*"
 djangorestframework-simplejwt = "*"
 graphifyy = "*"
+django-cors-headers = "*"
+python-dotenv = "*"
+requests = "*"
+django-apscheduler = "*"
+apscheduler = "*"
 
 [dev-packages]
 
