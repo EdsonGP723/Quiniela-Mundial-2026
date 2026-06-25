@@ -33,8 +33,9 @@ def calculate_earnings_on_match_finish(sender, instance, **kwargs):
                 pred.save()
 
             if winners:
+                from decimal import Decimal
                 # Dividimos la bolsa equitativamente
-                prize_per_winner = instance.prize_pool / len(winners)
+                prize_per_winner = Decimal(str(instance.prize_pool)) / Decimal(len(winners))
                 
                 for winner in winners:
                     winner.earnings = prize_per_winner
