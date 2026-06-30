@@ -14,15 +14,26 @@ class MyPredictionsView(generics.ListCreateAPIView):
     def get_queryset(self):
         return Prediction.objects.filter(user=self.request.user)
 
+    def create(self, request, *args, **kwargs):
+        from rest_framework.response import Response
+        match_id = request.data.get('match')
+        user = request.user
+        
+        try:
+            # Si ya existe una predicción para este partido, la actualizamos
+            prediction = Prediction.objects.get(user=user, match_id=match_id)
+            serializer = self.get_serializer(prediction, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+        except Prediction.DoesNotExist:
+            # Flujo normal de creación
+            return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
-        # Descontamos el saldo virtual al hacer la predicción
         with transaction.atomic():
             user = self.request.user
             match = serializer.validated_data['match']
-            
-            # Restamos del balance virtual y añadimos al prize_pool del partido
-            user.virtual_balance -= match.entry_fee
-            user.save()
             
             match.prize_pool += match.entry_fee
             match.save()

@@ -1,171 +1,175 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 export default function Earnings() {
+  const { user } = useAuth();
+  const [finishedMatches, setFinishedMatches] = useState([]);
+  const [predictions, setPredictions] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [matchesData, predsData] = await Promise.all([
+          api.get('/matches/'),
+          api.get('/predictions/mine/')
+        ]);
+        
+        // Filter finished matches
+        const finished = matchesData.filter(m => m.status === 'FINISHED' || m.status === 'IN_PLAY' || m.status === 'PAUSED');
+        finished.sort((a, b) => new Date(b.date) - new Date(a.date)); // Recent first
+        setFinishedMatches(finished);
+
+        // Map predictions by match ID
+        const predsMap = {};
+        predsData.forEach(p => {
+          predsMap[p.match] = p;
+        });
+        setPredictions(predsMap);
+      } catch (error) {
+        console.error("Error cargando resultados:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return <div className="flex justify-center p-20"><div className="w-10 h-10 border-4 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin"></div></div>;
+  }
+
+  // Calculate total points from finished matches (where points_earned is not null)
+  const totalEarnedPoints = Object.values(predictions).reduce((acc, pred) => acc + (pred.points_earned || 0), 0);
+  const totalMoneyEarned = Object.values(predictions).reduce((acc, pred) => acc + parseFloat(pred.earnings || 0), 0);
+
   return (
     <div className="w-full max-w-[1280px] mx-auto py-[var(--spacing-lg)] grid grid-cols-1 md:grid-cols-12 gap-[var(--spacing-gutter)]">
       {/* Left Column (Match Summary & Stats) */}
       <div className="col-span-1 md:col-span-8 flex flex-col gap-[var(--spacing-lg)]">
-        {/* Match Summary Header */}
-        <section className="bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline-variant)] rounded-lg p-[var(--spacing-lg)] shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-[var(--color-secondary-container)]"></div>
-          <div className="text-center mb-[var(--spacing-md)]">
-            <span className="font-['Work_Sans'] font-semibold text-sm text-[var(--color-outline)] uppercase tracking-widest">Resultado Final • Grupo C</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <div className="flex flex-col items-center gap-[var(--spacing-sm)]">
-              <img className="w-20 h-20 rounded-full shadow-sm object-cover" alt="Mexico Flag" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCn9bzu0pZ1cj_ZLCJTk2szjSzfK3fsOusfV-Qq6FpgYiHOH-ZbEIgIPTPryb97DmFVMrbPOieqs_QCYh54wUxsR7mY5E78YaGH2UY_TW-d7zx0Xs6W9MWUAjtJU4i9_XitNGkJBOUDqHCPz2TPyj14oZhVGpTwMGWryeVYqIuudy78SVK5j96Qv0xq2GChaq-F7F9IecyYDluU7VYjGfjefTs1K7Q-_BaHWHYTmlh5Kz3PeNA4GZ1eUQedT473HzoXdHpVJRmgncki"/>
-              <span className="font-['Montserrat'] font-bold text-3xl text-[var(--color-primary-container)]">MEX</span>
-            </div>
-            
-            <div className="flex flex-col items-center justify-center">
-              <div className="flex items-center gap-[var(--spacing-md)]">
-                <span className="font-['Montserrat'] font-extrabold text-5xl text-[var(--color-on-surface)]">2</span>
-                <span className="font-['Montserrat'] font-bold text-2xl text-[var(--color-outline)]">-</span>
-                <span className="font-['Montserrat'] font-extrabold text-5xl text-[var(--color-on-surface)]">1</span>
-              </div>
-              <span className="bg-[var(--color-surface-container)] text-[var(--color-on-surface-variant)] font-['Work_Sans'] font-semibold text-sm px-3 py-1 rounded-full mt-[var(--spacing-sm)]">FINAL</span>
-            </div>
-            
-            <div className="flex flex-col items-center gap-[var(--spacing-sm)]">
-              <img className="w-20 h-20 rounded-full shadow-sm object-cover" alt="Poland Flag" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFs11YOtx6c3AFluIjbEXNgi7RJehgOPaiuJUHSj-OvN6RbblMqD0UNuAggTZnHdZh-hcXwArtbwfOPQ8vz3TN7_Rq9gQP9ZRhzv6Wh7ihJ59InqI3mJzNZQcRQsZJYNGdsICr7iuxRNMa-ZTi87EU-SAGNuSIJB-1UUSxdYA-BPyPFl6n8M_3v93et3cm2wdZWJwVnQb3HUZ79cbSwxI6wd55RH3yikJnhL-M7qB-ERbAWtgWlnvngloeZC1l0pYVCRk7JW1kV-2M"/>
-              <span className="font-['Montserrat'] font-bold text-3xl text-[var(--color-outline)]">POL</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Betting Pool Stats */}
+        
+        {/* Betting Pool Stats / Points Summary */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-[var(--spacing-md)]">
           <div className="bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline-variant)] rounded-lg p-[var(--spacing-md)] shadow-sm flex flex-col items-center justify-center text-center">
-            <span className="material-symbols-outlined text-[var(--color-primary-container)] text-4xl mb-[var(--spacing-sm)]">payments</span>
-            <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-outline)] uppercase tracking-wider mb-[var(--spacing-xs)]">Bolsa Acumulada</span>
-            <span className="font-['Montserrat'] font-bold text-2xl md:text-3xl text-[var(--color-primary-container)]">$15,000 MXN</span>
-          </div>
-          <div className="bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline-variant)] rounded-lg p-[var(--spacing-md)] shadow-sm flex flex-col items-center justify-center text-center">
-            <span className="material-symbols-outlined text-[var(--color-outline)] text-4xl mb-[var(--spacing-sm)]">groups</span>
-            <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-outline)] uppercase tracking-wider mb-[var(--spacing-xs)]">Participantes</span>
-            <span className="font-['Montserrat'] font-bold text-2xl md:text-3xl text-[var(--color-on-surface)]">1,250</span>
+            <span className="material-symbols-outlined text-[var(--color-primary-container)] text-4xl mb-[var(--spacing-sm)]">stars</span>
+            <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-outline)] uppercase tracking-wider mb-[var(--spacing-xs)]">Puntos Totales Obtenidos</span>
+            <span className="font-['Montserrat'] font-bold text-2xl md:text-3xl text-[var(--color-primary-container)]">{totalEarnedPoints}</span>
           </div>
           <div className="bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline-variant)] rounded-lg p-[var(--spacing-md)] shadow-sm flex flex-col items-center justify-center text-center border-b-4 border-b-[var(--color-secondary-container)]">
-            <span className="material-symbols-outlined text-[var(--color-secondary-container)] text-4xl mb-[var(--spacing-sm)]">trophy</span>
-            <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-outline)] uppercase tracking-wider mb-[var(--spacing-xs)]">Ganadores (Marcador Exacto)</span>
-            <span className="font-['Montserrat'] font-bold text-2xl md:text-3xl text-[var(--color-secondary-container)]">3</span>
+            <span className="material-symbols-outlined text-[var(--color-secondary-container)] text-4xl mb-[var(--spacing-sm)]">fact_check</span>
+            <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-outline)] uppercase tracking-wider mb-[var(--spacing-xs)]">Predicciones Finalizadas</span>
+            <span className="font-['Montserrat'] font-bold text-2xl md:text-3xl text-[var(--color-secondary-container)]">
+              {Object.values(predictions).filter(p => p.points_earned !== null).length}
+            </span>
+          </div>
+          <div className="bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline-variant)] rounded-lg p-[var(--spacing-md)] shadow-sm flex flex-col items-center justify-center text-center border-b-4 border-b-[#10b981]">
+            <span className="material-symbols-outlined text-[#10b981] text-4xl mb-[var(--spacing-sm)]">payments</span>
+            <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-outline)] uppercase tracking-wider mb-[var(--spacing-xs)]">Dinero Ganado</span>
+            <span className="font-['Montserrat'] font-bold text-2xl md:text-3xl text-[#10b981]">
+              ${totalMoneyEarned.toFixed(2)}
+            </span>
           </div>
         </section>
 
-        {/* Winners Table */}
+        {/* Finished Matches List */}
         <section className="bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline-variant)] rounded-lg shadow-sm overflow-hidden">
           <div className="bg-[var(--color-surface-container-low)] px-[var(--spacing-md)] py-[var(--spacing-sm)] border-b border-[var(--color-outline-variant)] flex items-center gap-[var(--spacing-sm)]">
-            <span className="material-symbols-outlined text-[var(--color-on-surface)]">leaderboard</span>
-            <h3 className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface)]">Participantes</h3>
+            <span className="material-symbols-outlined text-[var(--color-on-surface)]">history</span>
+            <h3 className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface)]">Resultados Recientes</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[500px]">
               <thead>
                 <tr className="border-b border-[var(--color-outline-variant)] bg-[var(--color-surface-bright)]">
-                  <th className="p-[var(--spacing-sm)] font-['Work_Sans'] font-semibold text-sm text-[var(--color-outline)]">Pos</th>
-                  <th className="p-[var(--spacing-sm)] font-['Work_Sans'] font-semibold text-sm text-[var(--color-outline)]">Usuario</th>
-                  <th className="p-[var(--spacing-sm)] font-['Work_Sans'] font-semibold text-sm text-[var(--color-outline)] text-center">Predicción</th>
-                  <th className="p-[var(--spacing-sm)] font-['Work_Sans'] font-semibold text-sm text-[var(--color-outline)] text-right">Apostado</th>
+                  <th className="p-[var(--spacing-sm)] font-['Work_Sans'] font-semibold text-sm text-[var(--color-outline)]">Partido</th>
+                  <th className="p-[var(--spacing-sm)] font-['Work_Sans'] font-semibold text-sm text-[var(--color-outline)] text-center">Marcador Final</th>
+                  <th className="p-[var(--spacing-sm)] font-['Work_Sans'] font-semibold text-sm text-[var(--color-outline)] text-center">Tu Predicción</th>
+                  <th className="p-[var(--spacing-sm)] font-['Work_Sans'] font-semibold text-sm text-[var(--color-outline)] text-right">Puntos</th>
                   <th className="p-[var(--spacing-sm)] font-['Work_Sans'] font-semibold text-sm text-[var(--color-outline)] text-right">Ganancia</th>
                 </tr>
               </thead>
               <tbody className="font-['Work_Sans'] text-base">
-                <tr className="border-b border-[var(--color-surface-variant)] hover:bg-[var(--color-surface-container)] transition-colors">
-                  <td className="p-[var(--spacing-sm)] text-center">
-                    <span className="bg-[var(--color-primary-container)] text-[var(--color-on-primary)] w-6 h-6 inline-flex items-center justify-center rounded-full font-['Work_Sans'] font-medium text-xs">1</span>
-                  </td>
-                  <td className="p-[var(--spacing-sm)] font-medium text-[var(--color-on-surface)]">ElChicharito14</td>
-                  <td className="p-[var(--spacing-sm)] text-center">
-                    <span className="bg-[var(--color-primary-fixed-dim)] text-[var(--color-on-primary-fixed)] px-[var(--spacing-xs)] py-[var(--spacing-xs)] rounded font-['Work_Sans'] font-semibold text-sm">2 - 1</span>
-                  </td>
-                  <td className="p-[var(--spacing-sm)] text-right text-[var(--color-on-surface-variant)]">$500 MXN</td>
-                  <td className="p-[var(--spacing-sm)] text-right font-['Montserrat'] font-bold text-xl text-[var(--color-primary-container)]">$5,000 MXN</td>
-                </tr>
-                
-                <tr className="border-b border-[var(--color-surface-variant)] hover:bg-[var(--color-surface-container)] transition-colors">
-                  <td className="p-[var(--spacing-sm)] text-center">
-                    <span className="bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)] w-6 h-6 inline-flex items-center justify-center rounded-full font-['Work_Sans'] font-medium text-xs">2</span>
-                  </td>
-                  <td className="p-[var(--spacing-sm)] font-medium text-[var(--color-on-surface)]">AztecaEagle</td>
-                  <td className="p-[var(--spacing-sm)] text-center">
-                    <span className="bg-[var(--color-primary-fixed-dim)] text-[var(--color-on-primary-fixed)] px-[var(--spacing-xs)] py-[var(--spacing-xs)] rounded font-['Work_Sans'] font-semibold text-sm">2 - 1</span>
-                  </td>
-                  <td className="p-[var(--spacing-sm)] text-right text-[var(--color-on-surface-variant)]">$500 MXN</td>
-                  <td className="p-[var(--spacing-sm)] text-right font-['Montserrat'] font-bold text-xl text-[var(--color-primary-container)]">$5,000 MXN</td>
-                </tr>
-                
-                <tr className="border-b border-[var(--color-surface-variant)] hover:bg-[var(--color-surface-container)] transition-colors">
-                  <td className="p-[var(--spacing-sm)] text-center">
-                    <span className="bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)] w-6 h-6 inline-flex items-center justify-center rounded-full font-['Work_Sans'] font-medium text-xs">3</span>
-                  </td>
-                  <td className="p-[var(--spacing-sm)] font-medium text-[var(--color-on-surface)]">OchoaFan99</td>
-                  <td className="p-[var(--spacing-sm)] text-center">
-                    <span className="bg-[var(--color-primary-fixed-dim)] text-[var(--color-on-primary-fixed)] px-[var(--spacing-xs)] py-[var(--spacing-xs)] rounded font-['Work_Sans'] font-semibold text-sm">2 - 1</span>
-                  </td>
-                  <td className="p-[var(--spacing-sm)] text-right text-[var(--color-on-surface-variant)]">$500 MXN</td>
-                  <td className="p-[var(--spacing-sm)] text-right font-['Montserrat'] font-bold text-xl text-[var(--color-primary-container)]">$5,000 MXN</td>
-                </tr>
-
-                <tr className="border-b border-[var(--color-surface-variant)] hover:bg-[var(--color-surface-container)] transition-colors">
-                  <td className="p-[var(--spacing-sm)] text-center">
-                    <span className="bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)] w-6 h-6 inline-flex items-center justify-center rounded-full font-['Work_Sans'] font-medium text-xs">4</span>
-                  </td>
-                  <td className="p-[var(--spacing-sm)] font-medium text-[var(--color-on-surface)]">MexicoCity_Fan</td>
-                  <td className="p-[var(--spacing-sm)] text-center">
-                    <span className="bg-[var(--color-surface-container)] text-[var(--color-on-surface-variant)] px-[var(--spacing-xs)] py-[var(--spacing-xs)] rounded font-['Work_Sans'] font-semibold text-sm">1 - 1</span>
-                  </td>
-                  <td className="p-[var(--spacing-sm)] text-right text-[var(--color-on-surface-variant)]">$200 MXN</td>
-                  <td className="p-[var(--spacing-sm)] text-right font-['Montserrat'] font-bold text-xl text-[var(--color-outline)]">$0 MXN</td>
-                </tr>
+                {finishedMatches.length > 0 ? finishedMatches.map(match => {
+                  const pred = predictions[match.id];
+                  const hasPred = !!pred;
+                  const earned = pred?.points_earned ?? 0;
+                  
+                  return (
+                    <tr key={match.id} className="border-b border-[var(--color-surface-variant)] hover:bg-[var(--color-surface-container)] transition-colors">
+                      <td className="p-[var(--spacing-sm)] font-medium text-[var(--color-on-surface)]">
+                        <div className="flex items-center gap-2">
+                          <img src={match.team_a.flag_url} alt={match.team_a.short_name} className="w-6 h-6 object-contain" />
+                          <span>{match.team_a.short_name} vs {match.team_b.short_name}</span>
+                          <img src={match.team_b.flag_url} alt={match.team_b.short_name} className="w-6 h-6 object-contain" />
+                        </div>
+                      </td>
+                      <td className="p-[var(--spacing-sm)] text-center">
+                        <span className="bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)] px-[var(--spacing-xs)] py-[var(--spacing-xs)] rounded font-['Work_Sans'] font-semibold text-sm">
+                          {match.team_a_score ?? '-'} : {match.team_b_score ?? '-'}
+                        </span>
+                      </td>
+                      <td className="p-[var(--spacing-sm)] text-center">
+                        {hasPred ? (
+                          <span className="bg-[var(--color-primary-fixed-dim)] text-[var(--color-on-primary-fixed)] px-[var(--spacing-xs)] py-[var(--spacing-xs)] rounded font-['Work_Sans'] font-semibold text-sm">
+                            {pred.team_a_score} - {pred.team_b_score}
+                          </span>
+                        ) : (
+                          <span className="text-[var(--color-outline)] text-sm">Sin predicción</span>
+                        )}
+                      </td>
+                      <td className="p-[var(--spacing-sm)] text-right font-['Montserrat'] font-bold text-xl">
+                        {hasPred && earned > 0 ? (
+                          <span className="text-[var(--color-primary-container)]">+{earned} pts</span>
+                        ) : (
+                          <span className="text-[var(--color-outline)]">0 pts</span>
+                        )}
+                      </td>
+                      <td className="p-[var(--spacing-sm)] text-right font-['Montserrat'] font-bold text-lg text-[#10b981]">
+                        {hasPred && parseFloat(pred.earnings) > 0 ? (
+                          `+$${parseFloat(pred.earnings).toFixed(2)}`
+                        ) : (
+                          <span className="text-[var(--color-outline)]">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                }) : (
+                  <tr>
+                    <td colSpan="5" className="text-center py-8 text-[var(--color-outline)]">No hay partidos finalizados aún.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </section>
       </div>
 
-      {/* Right Column (Personal Result & Logic) */}
+      {/* Right Column (Logic Info) */}
       <div className="col-span-1 md:col-span-4 flex flex-col gap-[var(--spacing-lg)]">
-        {/* Personal Result Card (Lost State Example) */}
-        <section className="bg-[var(--color-error-container)] border border-[var(--color-error)]/20 rounded-lg p-[var(--spacing-lg)] shadow-sm flex flex-col items-center text-center relative overflow-hidden">
-          <div className="absolute inset-0 opacity-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjgiIGZpbGw9IiNmZmYiPjwvcmVjdD48Y2lyY2xlIGN4PSI0IiBjeT0iNCIgcj0iMSIgZmlsbD0iIzAwMCI+PC9jaXJjbGU+PC9zdmc+')]"></div>
-          <span className="material-symbols-outlined text-[var(--color-on-error-container)] text-5xl mb-[var(--spacing-sm)] relative z-10">cancel</span>
-          <h3 className="font-['Montserrat'] font-bold text-2xl md:text-3xl text-[var(--color-on-error-container)] mb-[var(--spacing-xs)] relative z-10">Sin suerte esta vez</h3>
-          <p className="font-['Work_Sans'] text-base text-[var(--color-on-error-container)]/80 mb-[var(--spacing-md)] relative z-10">Tu predicción no coincidió con el marcador final.</p>
-          
-          <div className="bg-[var(--color-surface-container-lowest)]/50 w-full rounded p-[var(--spacing-sm)] flex justify-between items-center relative z-10">
-            <div className="flex flex-col items-start">
-              <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-on-error-container)] uppercase">Tu Elección</span>
-              <span className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-error-container)]">MEX 3 - 0 POL</span>
-            </div>
-            <div className="flex flex-col items-end">
-              <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-on-error-container)] uppercase">Ganancia</span>
-              <span className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-error-container)]">$0 MXN</span>
-            </div>
-          </div>
-        </section>
-
+        
         {/* Payout Calculation Logic */}
-        <section className="bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline-variant)] rounded-lg p-[var(--spacing-md)] shadow-sm">
+        <section className="bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline-variant)] rounded-lg p-[var(--spacing-md)] shadow-sm sticky top-28">
           <div className="flex items-center gap-[var(--spacing-sm)] mb-[var(--spacing-md)] pb-[var(--spacing-sm)] border-b border-[var(--color-surface-variant)]">
             <span className="material-symbols-outlined text-[var(--color-primary-container)]">info</span>
-            <h4 className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface)]">Lógica de Pagos</h4>
+            <h4 className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface)]">Sistema de Puntos</h4>
           </div>
           <p className="font-['Work_Sans'] text-base text-[var(--color-on-surface-variant)] mb-[var(--spacing-md)]">
-            La bolsa total se divide equitativamente entre los participantes que predijeron el <strong>marcador exacto</strong>.
+            Gana puntos acertando el resultado y el marcador exacto de cada partido.
           </p>
           
-          <div className="bg-[var(--color-surface-container)] rounded p-[var(--spacing-sm)] flex flex-col gap-[var(--spacing-xs)] font-['Work_Sans'] font-medium text-xs text-[var(--color-on-surface)]">
-            <div className="flex justify-between">
-              <span>Bolsa Total:</span>
-              <span className="font-bold">$15,000 MXN</span>
+          <div className="bg-[var(--color-surface-container)] rounded p-[var(--spacing-sm)] flex flex-col gap-[var(--spacing-sm)] font-['Work_Sans'] font-medium text-sm text-[var(--color-on-surface)]">
+            <div className="flex justify-between items-center border-b border-[var(--color-outline-variant)]/50 pb-2">
+              <span className="flex items-center gap-2"><span className="material-symbols-outlined text-[var(--color-primary-container)] text-sm">check_circle</span> Acierto Exacto:</span>
+              <span className="font-bold text-[var(--color-primary-container)]">+3 pts</span>
             </div>
-            <div className="flex justify-between text-[var(--color-outline)]">
-              <span>÷ Número de Ganadores:</span>
-              <span>3</span>
+            <div className="flex justify-between items-center pb-1 text-[var(--color-on-surface-variant)]">
+              <span className="flex items-center gap-2"><span className="material-symbols-outlined text-sm">done</span> Acierto Ganador/Empate:</span>
+              <span className="font-bold">+1 pt</span>
             </div>
-            <div className="flex justify-between border-t border-[var(--color-outline-variant)] mt-[var(--spacing-xs)] pt-[var(--spacing-xs)] font-['Work_Sans'] font-semibold text-sm text-[var(--color-primary-container)]">
-              <span>Pago por Ganador:</span>
-              <span>$5,000 MXN</span>
+            
+            <div className="mt-4 text-xs text-[var(--color-outline)] text-center border-t border-[var(--color-outline-variant)]/50 pt-3">
+              Los puntos se calculan automáticamente al finalizar el partido.
             </div>
           </div>
         </section>

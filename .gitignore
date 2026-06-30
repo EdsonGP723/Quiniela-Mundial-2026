@@ -32,3 +32,4 @@ graphify-out/
 # Files
 query_graph.py
 .coverage
+*.sqlite3

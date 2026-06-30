@@ -13,6 +13,10 @@ python-dotenv = "*"
 requests = "*"
 django-apscheduler = "*"
 apscheduler = "*"
+gunicorn = "*"
+psycopg2-binary = "*"
+whitenoise = "*"
+dj-database-url = "*"
 
 [dev-packages]
 pytest = "*"

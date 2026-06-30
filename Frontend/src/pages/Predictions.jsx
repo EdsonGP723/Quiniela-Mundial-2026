@@ -1,152 +1,154 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import api from '../api/client';
 
 export default function Predictions() {
+  const [matches, setMatches] = useState([]);
+  const [predictions, setPredictions] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [matchesData, predsData] = await Promise.all([
+          api.get('/matches/'),
+          api.get('/predictions/mine/')
+        ]);
+        
+        // Ordenar partidos por fecha
+        matchesData.sort((a, b) => new Date(a.date) - new Date(b.date));
+        setMatches(matchesData);
+
+        // Map predictions by match ID
+        const predsMap = {};
+        predsData.forEach(p => {
+          predsMap[p.match] = p;
+        });
+        setPredictions(predsMap);
+      } catch (error) {
+        console.error("Error cargando predicciones:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return <div className="flex justify-center p-20"><div className="w-10 h-10 border-4 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin"></div></div>;
+  }
+
+  // Agrupar por fecha
+  const groupedMatches = matches.reduce((acc, match) => {
+    const date = new Date(match.date);
+    // capitalize
+    let dateStr = date.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' });
+    dateStr = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+    
+    if (!acc[dateStr]) acc[dateStr] = [];
+    acc[dateStr].push(match);
+    return acc;
+  }, {});
+
   return (
     <div className="w-full max-w-[1280px] mx-auto py-[var(--spacing-lg)] pb-32">
       {/* Header Section */}
       <header className="mb-[var(--spacing-lg)]">
         <h1 className="font-['Montserrat'] font-bold text-2xl md:text-3xl text-[var(--color-on-surface)] mb-[var(--spacing-xs)]">Predicciones de Partidos</h1>
-        <p className="font-['Work_Sans'] text-lg text-[var(--color-on-surface-variant)]">Ingresa tus predicciones para los próximos partidos. Las predicciones se cierran 15 minutos antes del inicio del partido.</p>
+        <p className="font-['Work_Sans'] text-lg text-[var(--color-on-surface-variant)]">Haz clic en un partido para ingresar o modificar tu predicción.</p>
       </header>
 
       {/* Match List grouped by Date */}
       <div className="space-y-[var(--spacing-xl)]">
-        
-        {/* Date Group 1 */}
-        <section>
-          <div className="flex items-center gap-[var(--spacing-md)] mb-[var(--spacing-md)]">
-            <h2 className="font-['Montserrat'] font-bold text-xl text-[var(--color-primary-container)]">Viernes, 24 Nov</h2>
-            <div className="h-px bg-[var(--color-outline-variant)] flex-grow"></div>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--spacing-gutter)]">
+        {Object.keys(groupedMatches).map(dateStr => (
+          <section key={dateStr}>
+            <div className="flex items-center gap-[var(--spacing-md)] mb-[var(--spacing-md)]">
+              <h2 className="font-['Montserrat'] font-bold text-xl text-[var(--color-primary-container)]">{dateStr}</h2>
+              <div className="h-px bg-[var(--color-outline-variant)] flex-grow"></div>
+            </div>
             
-            {/* Match Card 1 */}
-            <article className="bg-[var(--color-surface-container-lowest)] rounded border border-[var(--color-outline-variant)] shadow-[0_4px_12px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col md:flex-row items-center relative group hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-shadow">
-              {/* Live Indicator (Absolute) */}
-              <div className="absolute top-[var(--spacing-sm)] right-[var(--spacing-sm)] flex items-center gap-[var(--spacing-xs)]">
-                <div className="w-2 h-2 rounded-full bg-[var(--color-secondary)] animate-pulse"></div>
-                <span className="font-['Work_Sans'] font-semibold text-[10px] text-[var(--color-secondary)] uppercase tracking-widest">Live 65'</span>
-              </div>
-              
-              {/* Team A */}
-              <div className="flex-1 flex flex-col items-center p-[var(--spacing-md)] md:border-r border-[var(--color-outline-variant)]/50 w-full md:w-auto">
-                <div className="w-16 h-16 rounded-full overflow-hidden border border-[var(--color-outline-variant)] mb-[var(--spacing-sm)] shadow-sm">
-                  <img alt="Mexico Flag" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwGqj12qqHnt-8u472Auy722M9gRx00hwuI8fOfK99Ey8I2Sl2OTUWsDjOcB6GRtnHoipwdcgEdiuAkIidJu3_9CDq8ZPk9pgy4QhzT97PdNpcPnrw2W83jTcM2vueW1oAuf8aDtqJ7tDJia5wsIZKzKeXOwt46pkl8OxjmyUActB8Bvk4oXB7SL5aayFrIMFl9tkgosAtXuYPHJobyAFNPHIwOuxkBp70vXY3lnu2fIT1b9RYBbL_aQW_Y6G4gADzaASP94pSPFpA"/>
-                </div>
-                <h3 className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface)] text-center mb-[var(--spacing-xs)]">México</h3>
-                <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-on-surface-variant)]">Local</span>
-              </div>
-              
-              {/* Prediction Center */}
-              <div className="px-[var(--spacing-md)] py-[var(--spacing-lg)] flex flex-col items-center justify-center w-full md:w-auto bg-[var(--color-surface-container)]/30">
-                <div className="flex items-center gap-[var(--spacing-sm)]">
-                  <input className="w-16 h-16 text-center font-['Montserrat'] font-extrabold text-5xl bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline)] text-[var(--color-on-surface)] rounded focus:ring-2 focus:ring-[var(--color-primary-container)] focus:border-[var(--color-primary-container)] transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" max="99" min="0" type="number" defaultValue="2" disabled />
-                  <span className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface-variant)]">-</span>
-                  <input className="w-16 h-16 text-center font-['Montserrat'] font-extrabold text-5xl bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline)] text-[var(--color-on-surface)] rounded focus:ring-2 focus:ring-[var(--color-primary-container)] focus:border-[var(--color-primary-container)] transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" max="99" min="0" type="number" defaultValue="1" disabled />
-                </div>
-                <div className="mt-[var(--spacing-sm)] flex gap-[var(--spacing-xs)]">
-                  <span className="bg-[var(--color-primary-container)] text-[var(--color-on-primary)] font-['Work_Sans'] font-medium text-xs px-2 py-1 rounded-full uppercase">Bloqueado</span>
-                </div>
-              </div>
-              
-              {/* Team B */}
-              <div className="flex-1 flex flex-col items-center p-[var(--spacing-md)] md:border-l border-[var(--color-outline-variant)]/50 w-full md:w-auto">
-                <div className="w-16 h-16 rounded-full overflow-hidden border border-[var(--color-outline-variant)] mb-[var(--spacing-sm)] shadow-sm">
-                  <img alt="Poland Flag" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAEDcPgsJHw86DDDHv4Izl-KvXDYgr4e8lUgD-SByiIHRrii6NIZMgJ8SXechgSazvax6RBLLmQXC8e5h_uWTP4cyzGcNoTeNW_qw5NgttNtqwJUzApz385sMrN6ieja93veh7JWpjcvSYPIwfLt6n0Vv9gBRM6tXF6RqNqaK_S_f7jILiYQZEV4Qhz4K4tFCfTh8lL_T_DDiTt6_ILk7qcs0AMBsY2ZQ08MAcP2kR1Spj1I3t9N1YoXpFyzFef21WIeEvdNGXyhPUh"/>
-                </div>
-                <h3 className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface)] text-center mb-[var(--spacing-xs)]">Polonia</h3>
-                <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-on-surface-variant)]">Visitante</span>
-              </div>
-            </article>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--spacing-gutter)]">
+              {groupedMatches[dateStr].map(match => {
+                const isLocked = match.status !== 'SCHEDULED';
+                const pred = predictions[match.id];
+                const matchDate = new Date(match.date);
 
-            {/* Match Card 2 */}
-            <Link to="/predictions/2" className="bg-[var(--color-surface-container-lowest)] rounded border border-[var(--color-outline-variant)] shadow-[0_4px_12px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col md:flex-row items-center relative group hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-shadow">
-              <div className="absolute top-[var(--spacing-sm)] right-[var(--spacing-sm)] flex items-center gap-[var(--spacing-xs)]">
-                <span className="font-['Work_Sans'] font-medium text-[10px] text-[var(--color-on-surface-variant)] uppercase tracking-widest">14:00 CST</span>
-              </div>
-              
-              {/* Team A */}
-              <div className="flex-1 flex flex-col items-center p-[var(--spacing-md)] md:border-r border-[var(--color-outline-variant)]/50 w-full md:w-auto">
-                <div className="w-16 h-16 rounded-full overflow-hidden border border-[var(--color-outline-variant)] mb-[var(--spacing-sm)] shadow-sm">
-                  <img alt="Argentina Flag" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTVFFyTOLjGfROydkfF9-HRTjbAl133rzllaH1JuX0YumidaQOkZvDp2iETttjDR3htHJNLhWRoBV9yQAq9Lr9Bl1ORKOBr0z3hLV05guPyiQhFkG124Z0oYJrhVXHDnOcsFkzCRTeqFh0yLf47uW_GIrHRH6dyxPz1NIU4Kxd19ivbHXIekCmGs45szWN1vJYWuL0xXstQGNueXsgCb5bQKPr9eFe9m-NYpnIda6yJbwfNB7eeR9zbggpYHUKSnrY7WzZW-cUvSqO"/>
-                </div>
-                <h3 className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface)] text-center mb-[var(--spacing-xs)]">Argentina</h3>
-                <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-on-surface-variant)]">Local</span>
-              </div>
-              
-              {/* Prediction Center */}
-              <div className="px-[var(--spacing-md)] py-[var(--spacing-lg)] flex flex-col items-center justify-center w-full md:w-auto bg-[var(--color-surface-container)]/30">
-                <div className="flex items-center gap-[var(--spacing-sm)]">
-                  <input className="w-16 h-16 text-center font-['Montserrat'] font-extrabold text-5xl bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline-variant)] text-[var(--color-on-surface)] rounded focus:ring-2 focus:ring-[var(--color-primary-container)] focus:border-[var(--color-primary-container)] transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none cursor-pointer" max="99" min="0" placeholder="-" type="number" />
-                  <span className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface-variant)]">-</span>
-                  <input className="w-16 h-16 text-center font-['Montserrat'] font-extrabold text-5xl bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline-variant)] text-[var(--color-on-surface)] rounded focus:ring-2 focus:ring-[var(--color-primary-container)] focus:border-[var(--color-primary-container)] transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none cursor-pointer" max="99" min="0" placeholder="-" type="number" />
-                </div>
-              </div>
-              
-              {/* Team B */}
-              <div className="flex-1 flex flex-col items-center p-[var(--spacing-md)] md:border-l border-[var(--color-outline-variant)]/50 w-full md:w-auto">
-                <div className="w-16 h-16 rounded-full overflow-hidden border border-[var(--color-outline-variant)] mb-[var(--spacing-sm)] shadow-sm">
-                  <img alt="Saudi Arabia Flag" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuALcj2fUU8CC9RtjiSojswL9-wTnoIEjuIYhmZPSCZKjnyN2OQxHhG7HedKQg0zNY-Kg8TvXOBnCvvzCB1AJgq6NqGKkpUb3NBPeQa1Reei-QljvlffBiOjkpGhpCxpUlAVAxpTGr_DZkuZ2vZEopwMHr-mc4JPpA68tB-lJYxdBdWRvCvPkOudZwezOU5EjuuUPmlwQtbe0YCqe1TxYKE31MVlutaIAiM42ClPzqzIb4I4Ot3yngObiHMynI8K2tYyS06zmZojibCK"/>
-                </div>
-                <h3 className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface)] text-center mb-[var(--spacing-xs)]">Arabia Saudita</h3>
-                <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-on-surface-variant)]">Visitante</span>
-              </div>
-            </Link>
-          </div>
-        </section>
-
-        {/* Date Group 2 */}
-        <section>
-          <div className="flex items-center gap-[var(--spacing-md)] mb-[var(--spacing-md)]">
-            <h2 className="font-['Montserrat'] font-bold text-xl text-[var(--color-primary-container)]">Sábado, 25 Nov</h2>
-            <div className="h-px bg-[var(--color-outline-variant)] flex-grow"></div>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--spacing-gutter)]">
-            {/* Match Card 3 */}
-            <article className="bg-[var(--color-surface-container-lowest)] rounded border border-[var(--color-outline-variant)] shadow-[0_4px_12px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col md:flex-row items-center relative group hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-shadow">
-              <div className="absolute top-[var(--spacing-sm)] right-[var(--spacing-sm)] flex items-center gap-[var(--spacing-xs)]">
-                <span className="font-['Work_Sans'] font-medium text-[10px] text-[var(--color-on-surface-variant)] uppercase tracking-widest">10:00 CST</span>
-              </div>
-              
-              {/* Team A */}
-              <div className="flex-1 flex flex-col items-center p-[var(--spacing-md)] md:border-r border-[var(--color-outline-variant)]/50 w-full md:w-auto">
-                <div className="w-16 h-16 rounded-full overflow-hidden border border-[var(--color-outline-variant)] mb-[var(--spacing-sm)] shadow-sm">
-                  <img alt="France Flag" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDoa5Qoow9LcPC3VGsc8iyS3RCYQmiDz8yi5dSmcp6lOqAvRPKR9YXYtzPAmU_9tavtH9ax9mhi2o7GL514qNkcmr9Vj0Uj38Hg5tQFym9Erd8dA461e9XHOYUzvYfI63jabi70JODp0i1ah7QyI7eqRTlt_AE9bOIBgc_8tDBsSk5MF8_PPUMLOBXAY92FW2TDdRz3g3-HMCJRbYtfCfsRArHviMFrFTZBad3EBCzdaaZKSgDar7TMCdqhHpArpJc9j_PSqFtwgGJQ"/>
-                </div>
-                <h3 className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface)] text-center mb-[var(--spacing-xs)]">Francia</h3>
-                <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-on-surface-variant)]">Local</span>
-              </div>
-              
-              {/* Prediction Center */}
-              <div className="px-[var(--spacing-md)] py-[var(--spacing-lg)] flex flex-col items-center justify-center w-full md:w-auto bg-[var(--color-surface-container)]/30">
-                <div className="flex items-center gap-[var(--spacing-sm)]">
-                  <input className="w-16 h-16 text-center font-['Montserrat'] font-extrabold text-5xl bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline-variant)] text-[var(--color-on-surface)] rounded focus:ring-2 focus:ring-[var(--color-primary-container)] focus:border-[var(--color-primary-container)] transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" max="99" min="0" placeholder="-" type="number" />
-                  <span className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface-variant)]">-</span>
-                  <input className="w-16 h-16 text-center font-['Montserrat'] font-extrabold text-5xl bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline-variant)] text-[var(--color-on-surface)] rounded focus:ring-2 focus:ring-[var(--color-primary-container)] focus:border-[var(--color-primary-container)] transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" max="99" min="0" placeholder="-" type="number" />
-                </div>
-              </div>
-              
-              {/* Team B */}
-              <div className="flex-1 flex flex-col items-center p-[var(--spacing-md)] md:border-l border-[var(--color-outline-variant)]/50 w-full md:w-auto">
-                <div className="w-16 h-16 rounded-full overflow-hidden border border-[var(--color-outline-variant)] mb-[var(--spacing-sm)] shadow-sm">
-                  <img alt="Denmark Flag" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAD5Le1egfVkpabF8Qd7Ut0EDSWP6NmmDwKGK9fGVBn-F4eJKdQkhrS50aYjhg7ElqiNiF721w013jkXvOx-CxwWyXkw6otvky80YR-IdYbGYF9K4R1V5wtNF2__cSPLSqPwr_PnD5GCinP7Pcvr-UamsKQK1v1UwYRgEgQnR4rFqfrJMhyVOZ58vuNvdapjUZZQgfUn8qypwA7V-ey7n5XRq9jmJCTBe3xoIK4VTOO8MD3yksIdSTDg2HVlE07sUn5ZaZiCltRYl_r"/>
-                </div>
-                <h3 className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface)] text-center mb-[var(--spacing-xs)]">Dinamarca</h3>
-                <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-on-surface-variant)]">Visitante</span>
-              </div>
-            </article>
-          </div>
-        </section>
+                return (
+                  <Link 
+                    to={`/predictions/${match.id}`} 
+                    key={match.id}
+                    className={`bg-[var(--color-surface-container-lowest)] rounded border ${pred ? 'border-[var(--color-primary)]' : 'border-[var(--color-outline-variant)]'} shadow-[0_4px_12px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col md:flex-row items-center relative group hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-shadow`}
+                  >
+                    <div className="absolute top-[var(--spacing-sm)] right-[var(--spacing-sm)] flex items-center gap-[var(--spacing-xs)] z-10">
+                      {isLocked ? (
+                        <span className="bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)] font-['Work_Sans'] font-medium text-xs px-2 py-1 rounded-full uppercase">Terminado</span>
+                      ) : (
+                        <span className="font-['Work_Sans'] font-medium text-[10px] text-[var(--color-on-surface-variant)] uppercase tracking-widest">{matchDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</span>
+                      )}
+                    </div>
+                    
+                    {/* Team A */}
+                    <div className="flex-1 flex flex-col items-center p-[var(--spacing-md)] md:border-r border-[var(--color-outline-variant)]/50 w-full md:w-auto relative z-0">
+                      <div className="w-16 h-16 rounded-full overflow-hidden border border-[var(--color-outline-variant)] mb-[var(--spacing-sm)] shadow-sm bg-[var(--color-surface-container)] flex items-center justify-center p-2">
+                        <img alt={match.team_a.name} className="w-full h-full object-contain" src={match.team_a.flag_url}/>
+                      </div>
+                      <h3 className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface)] text-center mb-[var(--spacing-xs)]">{match.team_a.name}</h3>
+                      <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-on-surface-variant)] uppercase">{match.team_a.short_name}</span>
+                    </div>
+                    
+                    {/* Prediction Center */}
+                    <div className="px-[var(--spacing-md)] py-[var(--spacing-lg)] flex flex-col items-center justify-center w-full md:w-auto bg-[var(--color-surface-container)]/30 min-w-[150px]">
+                      {pred ? (
+                        <div className="flex flex-col items-center">
+                          <div className="flex items-center gap-[var(--spacing-sm)]">
+                            <span className="w-12 text-center font-['Montserrat'] font-extrabold text-4xl text-[var(--color-primary-container)]">{pred.team_a_score}</span>
+                            <span className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface-variant)]">-</span>
+                            <span className="w-12 text-center font-['Montserrat'] font-extrabold text-4xl text-[var(--color-primary-container)]">{pred.team_b_score}</span>
+                          </div>
+                          {pred.points_earned !== null && (
+                            <span className={`mt-2 font-['Work_Sans'] font-medium text-xs px-2 py-1 rounded-full ${pred.points_earned > 0 ? 'bg-[var(--color-primary-container)] text-[var(--color-on-primary)]' : 'bg-[var(--color-error)] text-[var(--color-on-error)]'}`}>
+                              +{pred.points_earned} pts
+                            </span>
+                          )}
+                          <div className="mt-2 text-[var(--color-on-surface-variant)] text-xs font-semibold font-['Work_Sans'] flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px]">payments</span>
+                            Bolsa: ${match.prize_pool}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center">
+                          <span className="font-['Work_Sans'] text-sm text-[var(--color-on-surface-variant)] mb-2">Sin predicción</span>
+                          {!isLocked && (
+                            <span className="bg-[var(--color-primary-container)] text-[var(--color-on-primary)] font-['Work_Sans'] font-medium text-xs px-3 py-1 rounded-full uppercase shadow-sm">
+                              Predecir
+                            </span>
+                          )}
+                          <div className="mt-2 text-[var(--color-on-surface-variant)] text-xs font-semibold font-['Work_Sans'] flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px]">monetization_on</span>
+                            Apuesta: ${match.entry_fee}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Team B */}
+                    <div className="flex-1 flex flex-col items-center p-[var(--spacing-md)] md:border-l border-[var(--color-outline-variant)]/50 w-full md:w-auto relative z-0">
+                      <div className="w-16 h-16 rounded-full overflow-hidden border border-[var(--color-outline-variant)] mb-[var(--spacing-sm)] shadow-sm bg-[var(--color-surface-container)] flex items-center justify-center p-2">
+                        <img alt={match.team_b.name} className="w-full h-full object-contain" src={match.team_b.flag_url}/>
+                      </div>
+                      <h3 className="font-['Montserrat'] font-bold text-xl text-[var(--color-on-surface)] text-center mb-[var(--spacing-xs)]">{match.team_b.name}</h3>
+                      <span className="font-['Work_Sans'] font-medium text-xs text-[var(--color-on-surface-variant)] uppercase">{match.team_b.short_name}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+        {matches.length === 0 && (
+          <div className="text-center py-12 text-[var(--color-on-surface-variant)]">No hay partidos disponibles.</div>
+        )}
       </div>
-
-      {/* Floating Action Button (Save) */}
-      <button className="fixed bottom-[var(--spacing-md)] md:bottom-[var(--spacing-lg)] right-[var(--spacing-margin-mobile)] md:right-[var(--spacing-margin-desktop)] bg-[var(--color-primary-container)] hover:bg-[var(--color-on-primary-fixed-variant)] text-[var(--color-on-primary)] rounded-full px-[var(--spacing-md)] py-[var(--spacing-sm)] flex items-center gap-[var(--spacing-sm)] shadow-[0_8px_24px_rgba(0,0,0,0.2)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.3)] transition-all z-40 transform hover:-translate-y-1 cursor-pointer">
-        <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>save</span>
-        <span className="font-['Work_Sans'] font-semibold text-sm uppercase tracking-wide">Guardar Predicciones</span>
-      </button>
     </div>
   );
 }

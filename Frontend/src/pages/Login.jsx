@@ -1,7 +1,34 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { login, user } = useAuth();
+  const navigate = useNavigate();
+
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    const result = await login(email, password);
+    
+    if (result.success) {
+      navigate('/dashboard');
+    } else {
+      setError(result.error?.detail || 'Credenciales inválidas o error en el servidor');
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-140px)] -mx-4 md:-mx-[var(--spacing-margin-desktop)] -my-4 md:-my-[var(--spacing-margin-desktop)] rounded-xl overflow-hidden shadow-xl border border-[var(--color-outline-variant)]">
       {/* Hero Section (Left on Desktop, Top on Mobile) */}
@@ -44,16 +71,26 @@ export default function Login() {
             <p className="font-['Work_Sans'] text-base text-[var(--color-on-surface-variant)]">Inicia sesión para registrar tus quinielas y ver la tabla.</p>
           </div>
           
-          <form className="space-y-[var(--spacing-md)]">
+          <form onSubmit={handleSubmit} className="space-y-[var(--spacing-md)]">
+            
+            {error && (
+              <div className="bg-[var(--color-error-container)] text-[var(--color-on-error-container)] p-3 rounded text-sm font-semibold border border-[var(--color-error)]">
+                {error}
+              </div>
+            )}
+
             <div className="space-y-[var(--spacing-base)]">
-              <label className="block font-['Work_Sans'] font-semibold text-sm text-[var(--color-on-surface)]" htmlFor="email">Correo Electrónico</label>
+              <label className="block font-['Work_Sans'] font-semibold text-sm text-[var(--color-on-surface)]" htmlFor="email">Usuario o Correo</label>
               <div className="relative">
                 <input 
                   className="w-full px-[var(--spacing-sm)] py-[var(--spacing-sm)] bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline-variant)] rounded-md focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] font-['Work_Sans'] text-base text-[var(--color-on-surface)] transition-colors placeholder:text-[var(--color-outline-variant)]" 
                   id="email" 
                   name="email" 
                   placeholder="fan@mexico.com" 
-                  type="email"
+                  type="text"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                 />
               </div>
             </div>
@@ -70,20 +107,19 @@ export default function Login() {
                   name="password" 
                   placeholder="••••••••" 
                   type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
                 />
               </div>
             </div>
             
-            <div className="flex items-center gap-[var(--spacing-xs)]">
-              <input className="w-4 h-4 rounded text-[var(--color-primary)] border-[var(--color-outline-variant)] focus:ring-[var(--color-primary)]" id="remember" type="checkbox"/>
-              <label className="font-['Work_Sans'] text-base text-[var(--color-on-surface-variant)]" htmlFor="remember">Recordarme</label>
-            </div>
-            
             <button 
-              className="w-full py-[var(--spacing-sm)] bg-[var(--color-primary-container)] text-[var(--color-on-primary)] font-['Montserrat'] font-bold text-xl rounded-md shadow-md hover:bg-[var(--color-primary-fixed-variant)] hover:shadow-lg transition-all active:scale-[0.98] uppercase tracking-wide cursor-pointer" 
-              type="button"
+              className={`w-full py-[var(--spacing-sm)] bg-[var(--color-primary-container)] text-[var(--color-on-primary)] font-['Montserrat'] font-bold text-xl rounded-md shadow-md transition-all uppercase tracking-wide ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[var(--color-primary-fixed-variant)] hover:shadow-lg active:scale-[0.98] cursor-pointer'}`}
+              type="submit"
+              disabled={isLoading}
             >
-              Iniciar Sesión
+              {isLoading ? 'Iniciando...' : 'Iniciar Sesión'}
             </button>
           </form>
           
@@ -98,12 +134,6 @@ export default function Login() {
             <Link to="/register" className="block w-full py-[var(--spacing-sm)] bg-[var(--color-surface-container-lowest)] border-2 border-[var(--color-primary)] text-[var(--color-primary)] font-['Montserrat'] font-bold text-xl rounded-md hover:bg-[var(--color-primary-fixed)]/10 transition-colors uppercase tracking-wide">
               Crear Cuenta
             </Link>
-          </div>
-          
-          <div className="pt-[var(--spacing-lg)] text-center">
-            <p className="font-['Work_Sans'] font-medium text-xs text-[var(--color-outline-variant)]">
-              Al iniciar sesión, aceptas nuestros Términos de Servicio y Reglas de Apuestas.
-            </p>
           </div>
         </div>
       </div>

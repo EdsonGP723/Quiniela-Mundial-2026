@@ -26,6 +26,7 @@ class Match(models.Model):
     team_b = models.ForeignKey(Team, related_name='matches_as_team_b', on_delete=models.CASCADE)
     
     date = models.DateTimeField(help_text="Fecha y hora de inicio del partido")
+    match_round = models.CharField(max_length=20, blank=True, help_text="Grupo o ronda (A, B, ..., R32, QF, SF, FINAL)")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SCHEDULED')
     
     # Marcador puede ser nulo hasta que inicie o termine el partido
@@ -33,7 +34,7 @@ class Match(models.Model):
     team_b_score = models.IntegerField(null=True, blank=True, help_text="Marcador del equipo B")
     
     # Costo por apostar en este partido y bolsa acumulada
-    entry_fee = models.DecimalField(max_digits=10, decimal_places=2, default=500.00, help_text="Costo en saldo virtual para predecir")
+    entry_fee = models.DecimalField(max_digits=10, decimal_places=2, default=100.00, help_text="Costo en saldo virtual para predecir")
     prize_pool = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Bolsa acumulada virtual")
 
     class Meta:

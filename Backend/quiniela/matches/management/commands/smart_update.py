@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from matches.models import Match, Team
-from matches.api_client import APIFootballClient
+from matches.models import Match
+from matches.api_client import WorldCup26Client
 from datetime import timedelta
 
 class Command(BaseCommand):
@@ -33,23 +33,29 @@ class Command(BaseCommand):
             self.stdout.write(self.style.NOTICE("Hay partidos hoy, pero ninguno está en ventana activa. No se hacen peticiones."))
             return
 
-        # 3. Hacer UNA sola petición para traer todos los partidos del día
-        self.stdout.write(self.style.NOTICE("Hay partidos activos. Consultando API-Football..."))
-        client = APIFootballClient()
-        fixtures_data = client.get_fixtures(date=today.strftime('%Y-%m-%d'))
+        # 3. Hacer UNA sola petición para traer todos los partidos (la API gratuita no filtra por fecha fácilmente, pero es un JSON ligero)
+        self.stdout.write(self.style.NOTICE("Hay partidos activos. Consultando WorldCup26.ir..."))
+        client = WorldCup26Client()
+        fixtures_data = client.get_games()
         
         updates_made = 0
 
-        for item in fixtures_data:
-            fixture = item.get('fixture', {})
-            status_data = fixture.get('status', {})
-            goals = item.get('goals', {})
-            teams = item.get('teams', {})
+        for game in fixtures_data:
+            # We only care about matches from today
+            date_str = game.get('local_date')
+            if not date_str:
+                continue
             
-            short_status = status_data.get('short')
-            home_team_name = teams.get('home', {}).get('name')
-            away_team_name = teams.get('away', {}).get('name')
+            # Simple check if the match is today
+            if today.strftime("%m/%d/%Y") not in date_str:
+                continue
+
+            home_team_name = game.get('home_team_name_en')
+            away_team_name = game.get('away_team_name_en')
             
+            if not home_team_name or not away_team_name:
+                continue
+
             try:
                 # Buscamos el partido por equipos y fecha (hoy)
                 match = Match.objects.get(
@@ -58,23 +64,20 @@ class Command(BaseCommand):
                     date__date=today
                 )
                 
-                # Mapeo de estados de API-Football a nuestros estados
-                # NS: Not Started, FT: Full Time, PEN: Penalty Finish, AET: After Extra Time
-                # 1H, 2H, HT, ET: Live statuses
-                
+                # Mapeo de estados
                 new_status = match.status
-                if short_status in ['1H', '2H', 'HT', 'ET', 'P', 'LIVE']:
-                    new_status = 'LIVE'
-                elif short_status in ['FT', 'AET', 'PEN']:
+                if game.get('finished') == 'TRUE':
                     new_status = 'FINISHED'
+                elif game.get('time_elapsed') not in ['notstarted', 'finished']:
+                    new_status = 'LIVE'
                     
                 # Actualizar si hay cambios en marcador o estado
                 changed = False
                 
-                # Actualizar marcadores si el partido empezó
-                if short_status != 'NS':
-                    home_goals = goals.get('home')
-                    away_goals = goals.get('away')
+                # Actualizar marcadores si el partido empezó (no es SCHEDULED y no tiene notstarted)
+                if game.get('time_elapsed') != 'notstarted':
+                    home_goals = int(game.get('home_score')) if game.get('home_score') else None
+                    away_goals = int(game.get('away_score')) if game.get('away_score') else None
                     
                     if match.team_a_score != home_goals:
                         match.team_a_score = home_goals
@@ -91,7 +94,7 @@ class Command(BaseCommand):
                 if changed:
                     match.save() # Esto disparará el Signal si cambia a FINISHED
                     updates_made += 1
-                    self.stdout.write(self.style.SUCCESS(f"Actualizado: {match} a {home_goals}-{away_goals} ({new_status})"))
+                    self.stdout.write(self.style.SUCCESS(f"Actualizado: {match} a {match.team_a_score}-{match.team_b_score} ({new_status})"))
 
             except Match.DoesNotExist:
                 continue

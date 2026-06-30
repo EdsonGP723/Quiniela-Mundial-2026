@@ -1,36 +1,37 @@
-import React, { useState } from 'react';
-
-// Mock data generation for 50 users
-const generateMockUsers = () => {
-  const users = [];
-  const trends = ['trending_up', 'trending_down', 'horizontal_rule'];
-  for (let i = 1; i <= 50; i++) {
-    users.push({
-      id: i,
-      rank: i,
-      name: `Jugador_${i}${Math.floor(Math.random() * 100)}`,
-      points: Math.floor(3500 - (i * 20) + Math.random() * 10),
-      trend: trends[Math.floor(Math.random() * trends.length)],
-      avatar: i <= 3 ? `https://i.pravatar.cc/150?img=${i}` : null
-    });
-  }
-  // Hardcode first 3 for the special top 3 styling
-  users[0] = { ...users[0], name: 'ElPenta_99', avatar: 'https://i.pravatar.cc/150?img=11', points: 3450, trend: 'horizontal_rule' };
-  users[1] = { ...users[1], name: 'AztecaKing', avatar: 'https://i.pravatar.cc/150?img=12', points: 3420, trend: 'trending_up' };
-  users[2] = { ...users[2], name: 'GoleadorXX', avatar: 'https://i.pravatar.cc/150?img=13', points: 3395, trend: 'trending_down' };
-  return users;
-};
-
-const allUsers = generateMockUsers();
+import React, { useState, useEffect } from 'react';
+import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 export default function Standings() {
+  const { user: currentUser } = useAuth();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  useEffect(() => {
+    async function fetchStandings() {
+      try {
+        const data = await api.get('/users/standings/');
+        // Assign ranks based on array order
+        const rankedUsers = data.map((u, index) => ({
+          ...u,
+          rank: index + 1
+        }));
+        setUsers(rankedUsers);
+      } catch (error) {
+        console.error("Error cargando ranking:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchStandings();
+  }, []);
+
   // Filter by search
-  const filteredUsers = allUsers.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = users.filter(u => 
+    u.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Pagination logic
@@ -43,6 +44,12 @@ export default function Standings() {
     setCurrentPage(1); // Reset to first page on search
   };
 
+  const myStanding = users.find(u => u.id === currentUser?.id);
+
+  if (loading) {
+    return <div className="flex justify-center p-20"><div className="w-10 h-10 border-4 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin"></div></div>;
+  }
+
   return (
     <div className="w-full max-w-[1280px] mx-auto py-[var(--spacing-lg)] px-4 animate-fade-in">
       <header className="mb-[var(--spacing-lg)] flex flex-col md:flex-row md:justify-between md:items-end border-b border-[var(--color-surface-variant)] pb-[var(--spacing-md)]">
@@ -53,26 +60,32 @@ export default function Standings() {
       </header>
 
       {/* Current User Highlight Card */}
-      <section className="bg-[var(--color-primary-container)] text-[var(--color-on-primary)] rounded-[var(--radius-xl)] p-[var(--spacing-md)] mb-[var(--spacing-lg)] shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between border-l-4 border-[var(--color-secondary)]">
-        <div 
-          className="absolute inset-0 opacity-10 pointer-events-none"
-          style={{ backgroundImage: "radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0)", backgroundSize: "16px 16px" }}
-        ></div>
-        <div className="flex items-center gap-[var(--spacing-md)] w-full md:w-auto mb-[var(--spacing-md)] md:mb-0 relative z-10">
-          <div className="font-['Montserrat'] font-extrabold text-5xl w-16 text-center text-[var(--color-primary-fixed)]">42</div>
-          <div className="w-16 h-16 rounded-full border-2 border-[var(--color-primary-fixed)] bg-[var(--color-surface)] flex items-center justify-center text-2xl">👤</div>
-          <div>
-            <h2 className="font-['Montserrat'] font-bold text-xl">Tu Posición</h2>
-            <p className="font-['Work_Sans'] font-semibold text-sm text-[var(--color-primary-fixed)]">Fanático</p>
+      {myStanding && (
+        <section className="bg-[var(--color-primary-container)] text-[var(--color-on-primary)] rounded-[var(--radius-xl)] p-[var(--spacing-md)] mb-[var(--spacing-lg)] shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between border-l-4 border-[var(--color-secondary)]">
+          <div 
+            className="absolute inset-0 opacity-10 pointer-events-none"
+            style={{ backgroundImage: "radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0)", backgroundSize: "16px 16px" }}
+          ></div>
+          <div className="flex items-center gap-[var(--spacing-md)] w-full md:w-auto mb-[var(--spacing-md)] md:mb-0 relative z-10">
+            <div className="font-['Montserrat'] font-extrabold text-5xl w-16 text-center text-[var(--color-primary-fixed)]">{myStanding.rank}</div>
+            {myStanding.avatar ? (
+              <img className="w-16 h-16 rounded-full border-2 border-[var(--color-primary-fixed)] object-cover" src={myStanding.avatar} alt="Mi Avatar" />
+            ) : (
+              <div className="w-16 h-16 rounded-full border-2 border-[var(--color-primary-fixed)] bg-[var(--color-surface)] flex items-center justify-center text-2xl">👤</div>
+            )}
+            <div>
+              <h2 className="font-['Montserrat'] font-bold text-xl">Tu Posición</h2>
+              <p className="font-['Work_Sans'] font-semibold text-sm text-[var(--color-primary-fixed)]">{myStanding.username}</p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-[var(--spacing-lg)] w-full md:w-auto relative z-10">
-          <div className="text-center md:text-right">
-            <p className="font-['Work_Sans'] font-medium text-xs text-[var(--color-primary-fixed)] uppercase tracking-wide">Puntos Totales</p>
-            <p className="font-['Montserrat'] font-bold text-3xl">2,850</p>
+          <div className="flex items-center gap-[var(--spacing-lg)] w-full md:w-auto relative z-10">
+            <div className="text-center md:text-right">
+              <p className="font-['Work_Sans'] font-medium text-xs text-[var(--color-primary-fixed)] uppercase tracking-wide">Puntos Totales</p>
+              <p className="font-['Montserrat'] font-bold text-3xl">{myStanding.points}</p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Search Bar */}
       <div className="mb-6 relative">
@@ -102,38 +115,38 @@ export default function Standings() {
             </thead>
             <tbody className="divide-y divide-[var(--color-surface-variant)]">
               {currentUsers.length > 0 ? (
-                currentUsers.map((user) => {
+                currentUsers.map((u) => {
                   
                   // Top 3 specific styling
                   let rankColor = "text-[var(--color-on-surface-variant)]";
                   let rowBg = "bg-[var(--color-surface-container-lowest)]";
                   
-                  if (user.rank === 1) { rankColor = "text-[#FFD700] drop-shadow-sm"; rowBg = "bg-[#fff9e6]"; }
-                  else if (user.rank === 2) { rankColor = "text-[#C0C0C0]"; rowBg = "bg-[#f5f5f5]"; }
-                  else if (user.rank === 3) { rankColor = "text-[#CD7F32]"; rowBg = "bg-[#fcf3ea]"; }
+                  if (u.rank === 1) { rankColor = "text-[#FFD700] drop-shadow-sm"; rowBg = "bg-[#fff9e6]"; }
+                  else if (u.rank === 2) { rankColor = "text-[#C0C0C0]"; rowBg = "bg-[#f5f5f5]"; }
+                  else if (u.rank === 3) { rankColor = "text-[#CD7F32]"; rowBg = "bg-[#fcf3ea]"; }
 
                   let trendIcon = "—";
                   let trendColor = "text-[var(--color-on-surface-variant)]";
-                  if (user.trend === 'trending_up') { trendIcon = "↑"; trendColor = "text-[var(--color-primary-container)] font-bold"; }
-                  if (user.trend === 'trending_down') { trendIcon = "↓"; trendColor = "text-[var(--color-error)] font-bold"; }
+                  if (u.trend === 'trending_up') { trendIcon = "↑"; trendColor = "text-[var(--color-primary-container)] font-bold"; }
+                  if (u.trend === 'trending_down') { trendIcon = "↓"; trendColor = "text-[var(--color-error)] font-bold"; }
 
                   return (
-                    <tr key={user.id} className={`${rowBg} hover:bg-[var(--color-surface-container)] transition-colors`}>
+                    <tr key={u.id} className={`${rowBg} hover:bg-[var(--color-surface-container)] transition-colors`}>
                       <td className={`py-[var(--spacing-sm)] px-[var(--spacing-md)] font-['Montserrat'] font-bold text-xl text-center ${rankColor}`}>
-                        {user.rank}
+                        {u.rank}
                       </td>
                       <td className="py-[var(--spacing-sm)] px-[var(--spacing-md)] flex items-center gap-[var(--spacing-sm)]">
-                        {user.avatar ? (
-                          <img alt="Avatar" className="w-10 h-10 rounded-full border border-[var(--color-surface-variant)] object-cover" src={user.avatar}/>
+                        {u.avatar ? (
+                          <img alt="Avatar" className="w-10 h-10 rounded-full border border-[var(--color-surface-variant)] object-cover" src={u.avatar}/>
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-[var(--color-surface-variant)] flex items-center justify-center font-['Work_Sans'] font-semibold text-sm text-[var(--color-on-surface-variant)]">
-                            {user.name.substring(0, 2).toUpperCase()}
+                            {u.username.substring(0, 2).toUpperCase()}
                           </div>
                         )}
-                        <span className="font-['Work_Sans'] font-bold text-base text-[var(--color-on-surface)]">{user.name}</span>
+                        <span className="font-['Work_Sans'] font-bold text-base text-[var(--color-on-surface)]">{u.username}</span>
                       </td>
                       <td className="py-[var(--spacing-sm)] px-[var(--spacing-md)] font-['Work_Sans'] text-base text-right font-bold text-[var(--color-primary)]">
-                        {user.points}
+                        {u.points}
                       </td>
                       <td className={`py-[var(--spacing-sm)] px-[var(--spacing-md)] text-center text-lg ${trendColor}`}>
                         {trendIcon}
@@ -158,7 +171,7 @@ export default function Standings() {
             <button 
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(p => p - 1)}
-              className="px-4 py-2 rounded-[var(--radius-md)] font-semibold text-sm bg-[var(--color-surface)] border border-[var(--color-outline-variant)] disabled:opacity-50 hover:bg-[var(--color-surface-variant)] transition-colors"
+              className="px-4 py-2 rounded-[var(--radius-md)] font-semibold text-sm bg-[var(--color-surface)] border border-[var(--color-outline-variant)] disabled:opacity-50 hover:bg-[var(--color-surface-variant)] transition-colors cursor-pointer"
             >
               Anterior
             </button>
@@ -168,7 +181,7 @@ export default function Standings() {
             <button 
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage(p => p + 1)}
-              className="px-4 py-2 rounded-[var(--radius-md)] font-semibold text-sm bg-[var(--color-surface)] border border-[var(--color-outline-variant)] disabled:opacity-50 hover:bg-[var(--color-surface-variant)] transition-colors"
+              className="px-4 py-2 rounded-[var(--radius-md)] font-semibold text-sm bg-[var(--color-surface)] border border-[var(--color-outline-variant)] disabled:opacity-50 hover:bg-[var(--color-surface-variant)] transition-colors cursor-pointer"
             >
               Siguiente
             </button>

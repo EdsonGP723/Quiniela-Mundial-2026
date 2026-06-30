@@ -22,15 +22,31 @@ def calculate_earnings_on_match_finish(sender, instance, **kwargs):
             
             winners = []
             
-            # Identificamos a los ganadores
+            # Identificamos a los ganadores y asignamos puntos
             for pred in predictions:
+                # Determinamos resultado del partido real
+                real_result = 'A' if instance.team_a_score > instance.team_b_score else ('B' if instance.team_b_score > instance.team_a_score else 'DRAW')
+                # Determinamos resultado de la predicción
+                pred_result = 'A' if pred.team_a_score > pred.team_b_score else ('B' if pred.team_b_score > pred.team_a_score else 'DRAW')
+                
                 if pred.team_a_score == instance.team_a_score and pred.team_b_score == instance.team_b_score:
                     pred.is_winner = True
+                    pred.points_earned = 3
                     winners.append(pred)
+                elif real_result == pred_result:
+                    pred.is_winner = False
+                    pred.points_earned = 1
                 else:
                     pred.is_winner = False
-                    pred.earnings = 0
+                    pred.points_earned = 0
+                    
+                pred.earnings = 0
                 pred.save()
+                
+                # Actualizamos puntos del usuario inmediatamente
+                user = pred.user
+                user.points += pred.points_earned
+                user.save()
 
             if winners:
                 from decimal import Decimal
@@ -41,10 +57,9 @@ def calculate_earnings_on_match_finish(sender, instance, **kwargs):
                     winner.earnings = prize_per_winner
                     winner.save()
                     
-                    # Actualizamos al usuario
+                    # Actualizamos el registro contable de ganancias (virtual_balance)
                     user = winner.user
                     user.virtual_balance += prize_per_winner
-                    user.points += 100 # Arbitrario: 100 puntos por acertar
                     user.save()
                     
             # Opcional: podríamos vaciar el prize_pool del partido o marcarlo como 'repartido'

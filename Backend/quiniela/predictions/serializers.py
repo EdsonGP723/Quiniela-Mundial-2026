@@ -12,8 +12,8 @@ class PredictionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Prediction
-        fields = ('id', 'match', 'match_detail', 'team_a_score', 'team_b_score', 'is_winner', 'earnings')
-        read_only_fields = ('is_winner', 'earnings')
+        fields = ('id', 'match', 'match_detail', 'team_a_score', 'team_b_score', 'is_winner', 'earnings', 'points_earned')
+        read_only_fields = ('is_winner', 'earnings', 'points_earned')
 
     def validate(self, data):
         """
@@ -24,12 +24,7 @@ class PredictionSerializer(serializers.ModelSerializer):
         if match and match.status != 'SCHEDULED':
             raise serializers.ValidationError("No puedes predecir un partido que ya ha comenzado o finalizado.")
         
-        # Validación de saldo en la creación
-        user = self.context['request'].user
-        if self.instance is None:  # Solo al crear
-            if user.virtual_balance < match.entry_fee:
-                raise serializers.ValidationError("Saldo virtual insuficiente para apostar en este partido.")
-                
+        # Se eliminó la validación estricta de saldo, cualquier usuario puede predecir
         return data
 
 class MatchEarningsSerializer(serializers.ModelSerializer):
@@ -38,5 +33,5 @@ class MatchEarningsSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = Prediction
-        fields = ('user', 'team_a_score', 'team_b_score', 'is_winner', 'earnings')
+        fields = ('user', 'team_a_score', 'team_b_score', 'is_winner', 'earnings', 'points_earned')
         depth = 1 # Para incluir username básico

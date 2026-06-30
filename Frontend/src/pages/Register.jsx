@@ -1,7 +1,65 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function Register() {
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    firstName: '',
+    lastName: ''
+  });
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { register: registerUser, user } = useAuth();
+  const navigate = useNavigate();
+
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Las contraseñas no coinciden');
+      return;
+    }
+
+    setIsLoading(true);
+
+    const payload = {
+      username: formData.username,
+      email: formData.email,
+      password: formData.password,
+      first_name: formData.firstName,
+      last_name: formData.lastName
+    };
+
+    const result = await registerUser(payload);
+    
+    if (result.success) {
+      navigate('/dashboard');
+    } else {
+      let errorMsg = 'Error al registrarse';
+      if (typeof result.error === 'object') {
+        const errors = Object.values(result.error).flat();
+        if (errors.length > 0) errorMsg = errors[0];
+      } else {
+        errorMsg = result.error;
+      }
+      setError(errorMsg);
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="relative min-h-[calc(100vh-140px)] flex items-center justify-center p-4">
       {/* Decorative Background Elements */}
@@ -13,19 +71,14 @@ export default function Register() {
       <main className="w-full max-w-[1120px] bg-[var(--color-surface-container-lowest)] rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] flex flex-col md:flex-row overflow-hidden border border-[var(--color-outline-variant)]/20 relative z-10">
         {/* Left Panel: Brand Imagery (Hidden on mobile) */}
         <div className="hidden md:flex md:w-[45%] lg:w-1/2 relative bg-[var(--color-primary)] items-center justify-center p-12 overflow-hidden">
-          {/* Background Image */}
           <div 
             className="absolute inset-0 bg-cover bg-center opacity-40 mix-blend-overlay" 
             style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCQ10vg7icgf6lpCYx4hjGz2CC4h1fjI2H-Wni3PbMf1qQkIFxHJNvWshNFivMvLchPkAzdyuu3xzSCvbSGOTzEvnVrSyoaXKxeaPDRkW8q__tsfyL9obPdxtAPVH3e0ZrI5Xk-xfBNbcwruzgB0gWInNdc2utlHCykRuWmdLxvHhNV__5OFbaxRHAAUTat80ncvbVj35xNHd9zBAOa49o4n6s_bLvWI_z1088asSiX9W1Cp7cKA5prnsbAD2ljpSqAvjtP2iTkKI4u')" }}
           ></div>
-          
-          {/* Tactile Mesh Overlay */}
           <div 
             className="absolute inset-0 opacity-10"
             style={{ backgroundImage: "radial-gradient(#ffffff 1px, transparent 1px)", backgroundSize: "12px 12px" }}
           ></div>
-          
-          {/* Brand Content */}
           <div className="relative z-10 text-center max-w-sm">
             <div className="mb-6 flex justify-center">
               <div className="w-20 h-20 bg-[var(--color-surface-container-lowest)] rounded-full flex items-center justify-center shadow-lg">
@@ -44,15 +97,6 @@ export default function Register() {
 
         {/* Right Panel: Registration Form */}
         <div className="w-full md:w-[55%] lg:w-1/2 p-8 sm:p-12 lg:p-16 flex flex-col justify-center bg-[var(--color-surface-container-lowest)] relative">
-          {/* Mobile Brand Header */}
-          <div className="md:hidden flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-[var(--color-primary)] rounded-full flex items-center justify-center shadow-md mb-4">
-              <span className="material-symbols-outlined text-[32px] text-[var(--color-on-primary)]">sports_soccer</span>
-            </div>
-            <h1 className="font-['Montserrat'] font-bold text-2xl text-[var(--color-primary)] uppercase tracking-tighter text-center">
-              TRI QUINIELA
-            </h1>
-          </div>
           
           {/* Form Header */}
           <div className="mb-8 text-center md:text-left">
@@ -60,113 +104,86 @@ export default function Register() {
             <p className="font-['Work_Sans'] text-base text-[var(--color-on-surface-variant)]">Regístrate para empezar a hacer tus predicciones y escalar en la tabla.</p>
           </div>
           
-          <form className="space-y-5">
-            {/* Full Name Input */}
-            <div>
-              <label className="block font-['Work_Sans'] font-semibold text-sm text-[var(--color-on-surface-variant)] mb-1.5" htmlFor="fullName">Nombre Completo</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <span className="material-symbols-outlined text-[var(--color-outline)] text-[20px]">person</span>
-                </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div className="bg-[var(--color-error-container)] text-[var(--color-on-error-container)] p-3 rounded text-sm font-semibold border border-[var(--color-error)]">
+                {error}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label className="block font-['Work_Sans'] font-semibold text-sm text-[var(--color-on-surface-variant)] mb-1.5" htmlFor="firstName">Nombre</label>
                 <input 
-                  className="w-full pl-11 pr-4 py-3.5 rounded-lg border border-[var(--color-outline-variant)] bg-[var(--color-surface)] text-[var(--color-on-surface)] focus:bg-[var(--color-surface-container-lowest)] focus:outline-none focus:border-[var(--color-primary-container)] focus:ring-2 focus:ring-[var(--color-primary-container)]/20 transition-all duration-200 font-['Work_Sans'] text-base placeholder:text-[var(--color-outline-variant)]" 
-                  id="fullName" 
-                  placeholder="Juan Perez" 
-                  type="text"
+                  className="w-full px-4 py-3.5 rounded-lg border border-[var(--color-outline-variant)] bg-[var(--color-surface)] focus:border-[var(--color-primary-container)] focus:ring-2 focus:ring-[var(--color-primary-container)]/20 text-base" 
+                  id="firstName" name="firstName" placeholder="Juan" type="text"
+                  value={formData.firstName} onChange={handleChange} required
+                />
+              </div>
+              <div>
+                <label className="block font-['Work_Sans'] font-semibold text-sm text-[var(--color-on-surface-variant)] mb-1.5" htmlFor="lastName">Apellido</label>
+                <input 
+                  className="w-full px-4 py-3.5 rounded-lg border border-[var(--color-outline-variant)] bg-[var(--color-surface)] focus:border-[var(--color-primary-container)] focus:ring-2 focus:ring-[var(--color-primary-container)]/20 text-base" 
+                  id="lastName" name="lastName" placeholder="Perez" type="text"
+                  value={formData.lastName} onChange={handleChange} required
                 />
               </div>
             </div>
+
+            <div>
+              <label className="block font-['Work_Sans'] font-semibold text-sm text-[var(--color-on-surface-variant)] mb-1.5" htmlFor="username">Nombre de Usuario</label>
+              <input 
+                className="w-full px-4 py-3.5 rounded-lg border border-[var(--color-outline-variant)] bg-[var(--color-surface)] focus:border-[var(--color-primary-container)] focus:ring-2 focus:ring-[var(--color-primary-container)]/20 text-base" 
+                id="username" name="username" placeholder="juanperez99" type="text"
+                value={formData.username} onChange={handleChange} required
+              />
+            </div>
             
-            {/* Email Input */}
             <div>
               <label className="block font-['Work_Sans'] font-semibold text-sm text-[var(--color-on-surface-variant)] mb-1.5" htmlFor="email">Correo Electrónico</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <span className="material-symbols-outlined text-[var(--color-outline)] text-[20px]">mail</span>
-                </div>
-                <input 
-                  className="w-full pl-11 pr-4 py-3.5 rounded-lg border border-[var(--color-outline-variant)] bg-[var(--color-surface)] text-[var(--color-on-surface)] focus:bg-[var(--color-surface-container-lowest)] focus:outline-none focus:border-[var(--color-primary-container)] focus:ring-2 focus:ring-[var(--color-primary-container)]/20 transition-all duration-200 font-['Work_Sans'] text-base placeholder:text-[var(--color-outline-variant)]" 
-                  id="email" 
-                  placeholder="fan@mexico.com" 
-                  type="email"
-                />
-              </div>
+              <input 
+                className="w-full px-4 py-3.5 rounded-lg border border-[var(--color-outline-variant)] bg-[var(--color-surface)] focus:border-[var(--color-primary-container)] focus:ring-2 focus:ring-[var(--color-primary-container)]/20 text-base" 
+                id="email" name="email" placeholder="fan@mexico.com" type="email"
+                value={formData.email} onChange={handleChange} required
+              />
             </div>
             
-            {/* Password Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* Password */}
               <div>
                 <label className="block font-['Work_Sans'] font-semibold text-sm text-[var(--color-on-surface-variant)] mb-1.5" htmlFor="password">Contraseña</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <span className="material-symbols-outlined text-[var(--color-outline)] text-[20px]">lock</span>
-                  </div>
-                  <input 
-                    className="w-full pl-11 pr-10 py-3.5 rounded-lg border border-[var(--color-outline-variant)] bg-[var(--color-surface)] text-[var(--color-on-surface)] focus:bg-[var(--color-surface-container-lowest)] focus:outline-none focus:border-[var(--color-primary-container)] focus:ring-2 focus:ring-[var(--color-primary-container)]/20 transition-all duration-200 font-['Work_Sans'] text-base placeholder:text-[var(--color-outline-variant)]" 
-                    id="password" 
-                    placeholder="••••••••" 
-                    type="password"
-                  />
-                  <button aria-label="Toggle password visibility" className="absolute inset-y-0 right-0 pr-3 flex items-center text-[var(--color-outline)] hover:text-[var(--color-primary-container)] transition-colors" type="button">
-                    <span className="material-symbols-outlined text-[20px]">visibility_off</span>
-                  </button>
-                </div>
-              </div>
-              
-              {/* Confirm Password */}
-              <div>
-                <label className="block font-['Work_Sans'] font-semibold text-sm text-[var(--color-on-surface-variant)] mb-1.5" htmlFor="confirmPassword">Confirmar Contraseña</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <span className="material-symbols-outlined text-[var(--color-outline)] text-[20px]">lock_reset</span>
-                  </div>
-                  <input 
-                    className="w-full pl-11 pr-10 py-3.5 rounded-lg border border-[var(--color-outline-variant)] bg-[var(--color-surface)] text-[var(--color-on-surface)] focus:bg-[var(--color-surface-container-lowest)] focus:outline-none focus:border-[var(--color-primary-container)] focus:ring-2 focus:ring-[var(--color-primary-container)]/20 transition-all duration-200 font-['Work_Sans'] text-base placeholder:text-[var(--color-outline-variant)]" 
-                    id="confirmPassword" 
-                    placeholder="••••••••" 
-                    type="password"
-                  />
-                  <button aria-label="Toggle confirm password visibility" className="absolute inset-y-0 right-0 pr-3 flex items-center text-[var(--color-outline)] hover:text-[var(--color-primary-container)] transition-colors" type="button">
-                    <span className="material-symbols-outlined text-[20px]">visibility_off</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            {/* Terms Checkbox */}
-            <div className="flex items-start pt-2">
-              <div className="flex items-center h-5 mt-0.5">
                 <input 
-                  className="w-5 h-5 rounded border-[var(--color-outline-variant)] text-[var(--color-primary-container)] focus:ring-[var(--color-primary-container)] focus:ring-offset-[var(--color-surface-container-lowest)] bg-[var(--color-surface)] cursor-pointer transition-colors" 
-                  id="terms" 
-                  type="checkbox"
+                  className="w-full px-4 py-3.5 rounded-lg border border-[var(--color-outline-variant)] bg-[var(--color-surface)] focus:border-[var(--color-primary-container)] focus:ring-2 focus:ring-[var(--color-primary-container)]/20 text-base" 
+                  id="password" name="password" placeholder="••••••••" type="password"
+                  value={formData.password} onChange={handleChange} required
                 />
               </div>
-              <div className="ml-3 text-sm">
-                <label className="font-['Work_Sans'] text-sm text-[var(--color-on-surface-variant)] cursor-pointer leading-relaxed block" htmlFor="terms">
-                  Acepto los <a className="text-[var(--color-primary-container)] hover:text-[var(--color-primary)] font-bold hover:underline transition-colors" href="#">Términos de Servicio</a>, <a className="text-[var(--color-primary-container)] hover:text-[var(--color-primary)] font-bold hover:underline transition-colors" href="#">Reglas de Apuestas</a>, y la <a className="text-[var(--color-primary-container)] hover:text-[var(--color-primary)] font-bold hover:underline transition-colors" href="#">Política de Privacidad</a>.
-                </label>
+              
+              <div>
+                <label className="block font-['Work_Sans'] font-semibold text-sm text-[var(--color-on-surface-variant)] mb-1.5" htmlFor="confirmPassword">Confirmar</label>
+                <input 
+                  className="w-full px-4 py-3.5 rounded-lg border border-[var(--color-outline-variant)] bg-[var(--color-surface)] focus:border-[var(--color-primary-container)] focus:ring-2 focus:ring-[var(--color-primary-container)]/20 text-base" 
+                  id="confirmPassword" name="confirmPassword" placeholder="••••••••" type="password"
+                  value={formData.confirmPassword} onChange={handleChange} required
+                />
               </div>
             </div>
             
-            {/* Submit Button */}
             <div className="pt-4">
               <button 
-                className="w-full py-4 bg-[var(--color-primary-container)] hover:bg-[var(--color-primary)] text-[var(--color-on-primary)] font-['Montserrat'] font-bold text-xl rounded-lg uppercase tracking-wide transition-all duration-200 shadow-[0_4px_12px_rgba(1,104,71,0.2)] hover:shadow-[0_6px_16px_rgba(1,104,71,0.3)] transform active:scale-[0.98] flex justify-center items-center gap-2 cursor-pointer" 
-                type="button"
+                className={`w-full py-4 bg-[var(--color-primary-container)] text-[var(--color-on-primary)] font-['Montserrat'] font-bold text-xl rounded-lg uppercase tracking-wide transition-all duration-200 shadow-[0_4px_12px_rgba(1,104,71,0.2)] hover:shadow-[0_6px_16px_rgba(1,104,71,0.3)] transform flex justify-center items-center gap-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.98] cursor-pointer'}`}
+                type="submit"
+                disabled={isLoading}
               >
-                <span>Crear Cuenta</span>
-                <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+                <span>{isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}</span>
+                {!isLoading && <span className="material-symbols-outlined text-[20px]">arrow_forward</span>}
               </button>
             </div>
           </form>
           
-          {/* Login Link */}
           <div className="mt-8 text-center border-t border-[var(--color-outline-variant)]/30 pt-6">
             <p className="font-['Work_Sans'] text-base text-[var(--color-on-surface-variant)]">
               ¿Ya tienes una cuenta? 
-              <Link to="/" className="text-[var(--color-secondary)] hover:text-[var(--color-secondary-container)] font-['Work_Sans'] font-semibold text-sm hover:underline transition-colors ml-1 inline-flex items-center gap-1">
+              <Link to="/login" className="text-[var(--color-secondary)] hover:text-[var(--color-secondary-container)] font-['Work_Sans'] font-semibold text-sm hover:underline transition-colors ml-1 inline-flex items-center gap-1">
                 Inicia sesión aquí
               </Link>
             </p>

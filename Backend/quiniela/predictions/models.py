@@ -18,6 +18,7 @@ class Prediction(models.Model):
     # Estos campos se actualizan mediante signals cuando el partido finaliza
     is_winner = models.BooleanField(null=True, blank=True, help_text="¿Acertó el marcador exacto?")
     earnings = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Ganancia obtenida en este partido")
+    points_earned = models.IntegerField(null=True, blank=True, help_text="Puntos ganados en esta predicción")
 
     class Meta:
         # Un usuario solo puede tener una predicción por partido
